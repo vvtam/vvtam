@@ -1,5 +1,4 @@
-### Hi there 👋
-![](https://github.githubassets.com/images/mona-whisper.gif)
+![](https://github.githubassets.com/images/mona-whisper.gif) Hi there
 
 - 🔭 I’m currently working on ...
 - 🌱 I’m currently learning ...
