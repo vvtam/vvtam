@@ -1,1 +1,1 @@
-![](https://github.githubassets.com/images/mona-whisper.gif) Hi there
+![](https://github.githubassets.com/images/mona-loading-default.gif) Hi there
