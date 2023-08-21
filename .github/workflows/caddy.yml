@@ -41,24 +41,6 @@ jobs:
             release: true
           }
         - {
-            name: "solaris-amd64",
-            GOARCH: amd64,
-            GOOS: solaris,
-            release: true
-          }
-        - {
-            name: "freebsd-amd64",
-            GOARCH: amd64,
-            GOOS: freebsd,
-            release: true
-          }
-        - {
-            name: "freebsd-arm",
-            GOARCH: arm,
-            GOOS: linux,
-            release: true
-          }
-        - {
             name: "darwin-arm64",
             GOARCH: arm64,
             GOOS: darwin,
@@ -78,7 +60,7 @@ jobs:
     - name: Install go
       uses: actions/setup-go@v3
       with:
-        go-version: '1.19'
+        go-version: '1.21'
         check-latest: true
     
     - name: Install xcaddy
