@@ -41,9 +41,28 @@ jobs:
             release: true
           }
         - {
-            name: "darwin-arm64",
+            name: "linux-armv5",
+            GOARCH: arm,
+            GOARM: 5,
+            GOOS: linux,
+            release: true
+          }
+        - {
+            name: "linux-s390x",
+            GOARCH: s390x,
+            GOOS: linux,
+            release: true
+          }
+        - {
+            name: "freebsd-amd64",
+            GOARCH: amd64,
+            GOOS: freebsd,
+            release: true
+          }
+        - {
+            name: "freebsd-arm64",
             GOARCH: arm64,
-            GOOS: darwin,
+            GOOS: linux,
             release: true
           }
         - {
@@ -52,15 +71,21 @@ jobs:
             GOOS: darwin,
             release: true
           }
+        - {
+            name: "darwin-arm64",
+            GOARCH: arm64,
+            GOOS: darwin,
+            release: true
+          }
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v3
 
     - name: Install go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v3
       with:
-        go-version: '1.21'
+        go-version: '1.22'
         check-latest: true
     
     - name: Install xcaddy
@@ -71,16 +96,15 @@ jobs:
         mkdir release-tmp
         export GOARCH=${{ matrix.config.GOARCH }} 
         export GOOS=${{ matrix.config.GOOS }} 
-        ~/go/bin/xcaddy build latest \
+        ~/go/bin/xcaddy build \
           --with github.com/mholt/caddy-l4 \
-          --with github.com/mholt/caddy-dynamicdns \
-          --with github.com/caddy-dns/alidns \
           --with github.com/caddy-dns/cloudflare \
-          --with github.com/caddy-dns/dnspod \
           --with clevergo.tech/caddy-dnspodcn \
           --with github.com/caddy-dns/duckdns \
-          --with github.com/mastercactapus/caddy2-proxyprotocol \
-          --with github.com/caddyserver/forwardproxy@caddy2=github.com/klzgrad/forwardproxy@naive \
+          --with github.com/mholt/caddy-dynamicdns \
+          --with github.com/mholt/caddy-events-exec \
+          --with github.com/WeidiDeng/caddy-cloudflare-ip \
+          --with github.com/caddyserver/forwardproxy=github.com/sagernet/forwardproxy@latest \
           --with github.com/imgk/caddy-trojan \
           --with github.com/mholt/caddy-webdav \
           --output ./release-tmp/caddy
@@ -110,7 +134,7 @@ jobs:
         tar -zcvf ../release-ready/caddy-${{ matrix.config.name }}.tar.gz *
 
     - name: Upload a Build Artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: caddy-${{ github.sha }}-${{ matrix.config.name }}
         path: ./release-ready/*
