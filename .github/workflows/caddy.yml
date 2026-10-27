@@ -1,159 +1,179 @@
+
 name: Build caddy
 
 on:
   workflow_dispatch:
 
   release:
-    types: 
-      - 'prereleased' 
-      - 'published' 
-      - 'released'
+    types:
+      - prereleased
+      - published
+
+permissions:
+  contents: write
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    name: Build ${{ matrix.config.name }}
+    runs-on: ubuntu-24.04
+
     strategy:
       fail-fast: false
       matrix:
         config:
-        - {
-            name: "windows-386",
-            GOARCH: 386,
-            GOOS: windows,
+          - name: windows-386
+            GOARCH: "386"
+            GOOS: windows
             release: true
-          }
-        - {
-            name: "windows-amd64",
-            GOARCH: amd64,
-            GOOS: windows,
+
+          - name: windows-amd64
+            GOARCH: amd64
+            GOOS: windows
             release: true
-          }
-        - {
-            name: "linux-amd64",
-            GOARCH: amd64,
-            GOOS: linux,
+
+          - name: linux-amd64
+            GOARCH: amd64
+            GOOS: linux
             release: true
-          }
-        - {
-            name: "linux-arm64",
-            GOARCH: arm64,
-            GOOS: linux,
+
+          - name: linux-arm64
+            GOARCH: arm64
+            GOOS: linux
             release: true
-          }
-        - {
-            name: "linux-armv5",
-            GOARCH: arm,
-            GOARM: 5,
-            GOOS: linux,
+
+          - name: linux-armv5
+            GOARCH: arm
+            GOARM: "5"
+            GOOS: linux
             release: true
-          }
-        - {
-            name: "linux-s390x",
-            GOARCH: s390x,
-            GOOS: linux,
+
+          - name: linux-s390x
+            GOARCH: s390x
+            GOOS: linux
             release: true
-          }
-        - {
-            name: "freebsd-amd64",
-            GOARCH: amd64,
-            GOOS: freebsd,
+
+          - name: freebsd-amd64
+            GOARCH: amd64
+            GOOS: freebsd
             release: true
-          }
-        - {
-            name: "freebsd-arm64",
-            GOARCH: arm64,
-            GOOS: freebsd,
+
+          - name: freebsd-arm64
+            GOARCH: arm64
+            GOOS: freebsd
             release: true
-          }
-        - {
-            name: "darwin-amd64",
-            GOARCH: amd64,
-            GOOS: darwin,
+
+          - name: darwin-amd64
+            GOARCH: amd64
+            GOOS: darwin
             release: true
-          }
-        - {
-            name: "darwin-arm64",
-            GOARCH: arm64,
-            GOOS: darwin,
+
+          - name: darwin-arm64
+            GOARCH: arm64
+            GOOS: darwin
             release: true
-          }
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v7
 
-    - name: Install go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.27'
-        check-latest: true
-    
-    - name: Install xcaddy
-      run: go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
-    
-    - name: Build caddy
-      run: |
-        mkdir release-tmp
-        export GOARCH=${{ matrix.config.GOARCH }} 
-        export GOOS=${{ matrix.config.GOOS }} 
-        ~/go/bin/xcaddy build \
-          --with github.com/caddyserver/forwardproxy=github.com/ZihaoFU245/forwardproxy@master \
-          --with github.com/imgk/caddy-trojan \
-          --with github.com/mholt/caddy-webdav \
-          --with github.com/WeidiDeng/caddy-cloudflare-ip \
-          --with github.com/xcaddyplugins/caddy-trusted-cloudfront \
-          --with github.com/caddy-dns/cloudflare \
-          --with github.com/caddy-dns/duckdns \
-          --with github.com/caddy-dns/tencentcloud \
-          --with github.com/mholt/caddy-events-exec \
-          --with github.com/mholt/caddy-l4 \
-          --with github.com/caddyserver/jsonc-adapter \
-          --output ./release-tmp/caddy
+      - name: Install Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "1.27"
+          check-latest: true
+          cache: false
 
-    - name: Rename for Windows 
-      if: matrix.config.GOOS == 'windows'
-      run: |
-        mv ./release-tmp/caddy ./release-tmp/caddy.exe
-    
-    - name: Calculate Hash
-      run: |
-        cd ./release-tmp || exit 1
-        sha256sum * > sha256
+      - name: Install xcaddy
+        run: |
+          go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
-    - name: Generate zip for Windows
-      if: matrix.config.GOOS == 'windows'
-      run: |
-        mkdir release-ready
-        cd ./release-tmp
-        zip -r ../release-ready/caddy-${{ matrix.config.name }}.zip *
-    
-    - name: Generate tar for other platform
-      if: matrix.config.GOOS != 'windows'
-      run: |
-        mkdir release-ready
-        cd ./release-tmp
-        tar -zcvf ../release-ready/caddy-${{ matrix.config.name }}.tar.gz *
+      - name: Show build environment
+        run: |
+          go version
+          xcaddy version
+          echo "Target: ${{ matrix.config.GOOS }}/${{ matrix.config.GOARCH }}"
+          echo "GOARM: ${{ matrix.config.GOARM }}"
 
-    - name: Upload a Build Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: caddy-${{ github.sha }}-${{ matrix.config.name }}
-        path: ./release-ready/*
-        
-    - name: Upload to GitHub Release for Windows
-      uses: svenstaro/upload-release-action@v2
-      if: github.event_name == 'release' && matrix.config.release && matrix.config.GOOS == 'windows'
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./release-ready/caddy-${{ matrix.config.name }}.zip
-        tag: ${{ github.ref }}
-        overwrite: true
-        
-    - name: Upload to GitHub Release for other platform
-      uses: svenstaro/upload-release-action@v2
-      if: github.event_name == 'release' && matrix.config.release && matrix.config.GOOS != 'windows'
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./release-ready/caddy-${{ matrix.config.name }}.tar.gz
-        tag: ${{ github.ref }}
-        overwrite: true
+      - name: Build Caddy
+        env:
+          GOOS: ${{ matrix.config.GOOS }}
+          GOARCH: ${{ matrix.config.GOARCH }}
+          GOARM: ${{ matrix.config.GOARM }}
+          CGO_ENABLED: "0"
+        run: |
+          set -euo pipefail
+          mkdir -p release-tmp
+
+          xcaddy build \
+            --with github.com/caddyserver/forwardproxy=github.com/ZihaoFU245/forwardproxy@master \
+            --with github.com/mholt/caddy-webdav \
+            --with github.com/WeidiDeng/caddy-cloudflare-ip \
+            --with github.com/xcaddyplugins/caddy-trusted-cloudfront \
+            --with github.com/caddy-dns/cloudflare \
+            --with github.com/caddy-dns/duckdns \
+            --with github.com/caddy-dns/tencentcloud \
+            --with github.com/mholt/caddy-events-exec \
+            --with github.com/mholt/caddy-l4 \
+            --with github.com/caddyserver/jsonc-adapter \
+            --output ./release-tmp/caddy
+
+      - name: Rename Windows executable
+        if: matrix.config.GOOS == 'windows'
+        run: mv ./release-tmp/caddy ./release-tmp/caddy.exe
+
+      - name: Calculate SHA256
+        run: |
+          set -euo pipefail
+          cd release-tmp
+          if [ "${{ matrix.config.GOOS }}" = "windows" ]; then
+            sha256sum caddy.exe > sha256
+          else
+            sha256sum caddy > sha256
+          fi
+
+      - name: Package Windows build
+        if: matrix.config.GOOS == 'windows'
+        run: |
+          set -euo pipefail
+          mkdir -p release-ready
+          cd release-tmp
+          zip -9 "../release-ready/caddy-${{ matrix.config.name }}.zip" caddy.exe sha256
+
+      - name: Package Unix build
+        if: matrix.config.GOOS != 'windows'
+        run: |
+          set -euo pipefail
+          mkdir -p release-ready
+          cd release-tmp
+          tar -czf "../release-ready/caddy-${{ matrix.config.name }}.tar.gz" caddy sha256
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: caddy-${{ github.sha }}-${{ matrix.config.name }}
+          path: release-ready/*
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Windows build to GitHub Release
+        if: github.event_name == 'release' && matrix.config.release && matrix.config.GOOS == 'windows'
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: release-ready/caddy-${{ matrix.config.name }}.zip
+          asset_name: caddy-${{ matrix.config.name }}.zip
+          tag: ${{ github.event.release.tag_name }}
+          overwrite: true
+          file_glob: false
+
+      - name: Upload Unix build to GitHub Release
+        if: github.event_name == 'release' && matrix.config.release && matrix.config.GOOS != 'windows'
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: release-ready/caddy-${{ matrix.config.name }}.tar.gz
+          asset_name: caddy-${{ matrix.config.name }}.tar.gz
+          tag: ${{ github.event.release.tag_name }}
+          overwrite: true
+          file_glob: false
